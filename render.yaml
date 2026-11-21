@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: krysholet
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: ADMIN_KEY            # пароль админки (магазин/баны); Render придумает сам и покажет в Environment
+        generateValue: true
+      - key: EXPORT_SECRET        # подпись файлов экспорта аккаунта; не меняй и не показывай — иначе старые файлы перестанут приниматься
+        generateValue: true
+      - key: TRUST_PROXY_HOPS     # за Render стоит один прокси
+        value: "1"
+      - key: UPSTASH_REDIS_REST_URL     # постоянная база (бесплатно) — см. README; можно оставить пустым
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
