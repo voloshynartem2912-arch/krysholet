@@ -275,7 +275,7 @@ const server = http.createServer(async (req, res) => {
     if (url === '/api/lb' && req.method === 'GET') return send(res, 200, { ok: true, rows: leaderboard(q.get('tab'), q.get('map')) });
     if (url === '/api/shop' && req.method === 'GET') return send(res, 200, Object.assign({ ok: true }, shopView(authOf(req))));
     if (url === '/api/levels' && req.method === 'GET') {
-      return send(res, 200, { ok: true, levels: Object.entries(db.levels).sort((a, b) => b[1].upd - a[1].upd).slice(0, 60).map(([id, l]) => ({ id, name: l.name, by: l.by, items: l.items })) });
+      return send(res, 200, { ok: true, levels: Object.entries(db.levels).sort((a, b) => b[1].upd - a[1].upd).slice(0, 60).map(([id, l]) => ({ id, name: l.name, by: l.by, items: l.items, online: (rooms.get('map-lv-' + id) || { size: 0 }).size })) });
     }
 
     const lm = url.match(/^\/api\/levels\/([0-9a-f]{12})$/);

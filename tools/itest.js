@@ -120,6 +120,10 @@ const rep = (m) => JSON.parse(fs.readFileSync(path.join(__dirname, 'replays', m 
   r = await api('POST', '/api/levels', { name: 'X', items: [{ t: '__proto__' }] }, A.tok); ok(r.s === 400, 'уровень с чужим типом объекта отклонён');
   ok((await api('GET', '/api/levels/' + A.id)).j.items.length === 3, 'уровень читается по id владельца');
 
+  const wl = new WebSocket('ws://127.0.0.1:' + PORT + '/ws?room=map-lv-' + A.id + '&t=' + encodeURIComponent(A.tok)); await new Promise((res) => wl.on('open', res)); await sleep(150);
+  ok(((await api('GET', '/api/levels')).j.levels.find((l) => l.id === A.id) || {}).online === 1, 'в списке уровней видно, сколько игроков внутри');
+  wl.close(); await sleep(150);
+
   console.log('\n[защита от флуда и больших запросов]');
   const big = 'A'.repeat(200000); r = await api('POST', '/api/run', { map: 'city', sv, replay: big }, A.tok); ok(r.s === 413 || r.s === 429, 'огромное тело отклоняется (' + r.s + ')');
   let n429 = 0; for (let i = 0; i < 300; i++) { const x = await api('GET', '/api/lb', undefined, null, { ip: 77 }); if (x.s === 429) n429++; } ok(n429 > 0, 'с одного IP больше ~240 запросов в минуту режутся (' + n429 + ')');

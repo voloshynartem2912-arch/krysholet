@@ -714,7 +714,7 @@ Object.assign(EN, {
   'Снять':'Remove','Надеть':'Wear','Куплено!':'Purchased!','Не хватает монет':'Not enough coins','Уже куплено':'Already owned','Аккаунт заблокирован':'Account banned','Нет такого предмета':'No such item','Не куплено':'Not owned','Ошибка':'Error',
   'Загрузка…':'Loading…','Нет связи с сервером':'No connection to the server','Отправляю на сервер…':'Sending to the server…','первое прохождение!':'first clear!','лимит наград за час исчерпан':'hourly reward cap reached','рекорд времени!':'time record!',
   'Сервер не засчитал финиш — перезагрузи страницу и попробуй снова':'The server did not count the finish — reload the page and try again','Нет связи с сервером — отправлю позже':'No connection — will send later','Вышла новая версия игры — обнови страницу (F5)':'A new version is out — reload the page (F5)','Сервер не принял забег':'The server rejected the run',
-  'Сменить имя':'Rename','Имя':'Name','Код входа — по нему можно открыть аккаунт на другом устройстве. Никому не показывай!':'Login code — opens this account on another device. Never share it!','Копировать':'Copy','Вставить код':'Paste code','Войти по коду':'Log in with code','Скопировано':'Copied','Неверный код':'Wrong code','Имя сохранено':'Name saved','Резервная копия: файл привязан к твоему коду входа и не работает у других. Если сервер «уснул» и стёр аккаунт — загрузи файл обратно.':'Backup: the file is bound to your login code and does not work for anyone else. If the server slept and wiped your account, upload the file back.','Скачать копию':'Download backup','Восстановить из файла':'Restore from file','Экспорт выключен на сервере':'Export is disabled on the server','Копия скачана. Храни её вместе с кодом входа, но не отправляй другим.':'Backup saved. Keep it together with your login code and do not send it to others.','Выбери файл копии':'Choose a backup file','Файл повреждён':'File is damaged','Этот файл не от твоего аккаунта: вставь код входа от него в поле выше':'This file is not from your account: paste its login code in the field above','Этот аккаунт уже есть на сервере — восстанавливать нечего':'This account already exists on the server — nothing to restore','Файл повреждён или от другого сервера':'File is damaged or from another server','Слишком часто, подожди':'Too many tries, wait',
+  'Сменить имя':'Rename','Имя':'Name','Код входа — по нему можно открыть аккаунт на другом устройстве. Никому не показывай!':'Login code — opens this account on another device. Never share it!','Копировать':'Copy','Вставить код':'Paste code','Войти по коду':'Log in with code','Скопировано':'Copied','Неверный код':'Wrong code','Имя сохранено':'Name saved','Опубликовано! Друзья найдут уровень в «Уровни игроков» и смогут играть вместе с тобой.':'Published! Friends will find it in Player levels and can play with you.','Резервная копия: файл привязан к твоему коду входа и не работает у других. Если сервер «уснул» и стёр аккаунт — загрузи файл обратно.':'Backup: the file is bound to your login code and does not work for anyone else. If the server slept and wiped your account, upload the file back.','Скачать копию':'Download backup','Восстановить из файла':'Restore from file','Экспорт выключен на сервере':'Export is disabled on the server','Копия скачана. Храни её вместе с кодом входа, но не отправляй другим.':'Backup saved. Keep it together with your login code and do not send it to others.','Выбери файл копии':'Choose a backup file','Файл повреждён':'File is damaged','Этот файл не от твоего аккаунта: вставь код входа от него в поле выше':'This file is not from your account: paste its login code in the field above','Этот аккаунт уже есть на сервере — восстанавливать нечего':'This account already exists on the server — nothing to restore','Файл повреждён или от другого сервера':'File is damaged or from another server','Слишком часто, подожди':'Too many tries, wait',
   'Мои монеты за карту':'My coins','Уровни игроков':'Player levels','Не удалось загрузить':'Could not load',
 });
 let savedCp = 0;
@@ -1696,10 +1696,20 @@ function edDraw() {
 }
 function edSave() { CUSTOM = ED.items.map((o) => Object.assign({}, o)); try { localStorage.setItem('pk_custom', JSON.stringify(CUSTOM)); } catch (e) {} }
 function edValid() { const a = ED.items; if (!a.some((o) => o.t === 'p')) return tr('Нет старта'); if (!a.some((o) => o.t === 'f')) return tr('Нет финиша'); if (a.length > 400) return 'Слишком много объектов'; return ''; }
-function edPlay(items, owner) { if (!items) { const er = edValid(); if (er) { edMsg(er); return; } edSave(); } else { CUSTOM = items; } CUSTOM_OWNER = owner || 'local'; if (ED.root) ED.root.hidden = true; setMap('custom'); startGame(false); }
+const ED_KEYS = { s: ['x', 'y', 'w', 'h'], b: ['x', 'y', 'w'], c: ['x', 'y'], k: ['x', 'y'], p: ['x', 'y'], f: ['x', 'y'] };
+const edSig = (a) => JSON.stringify((a || []).map((o) => { const r = { t: o.t }; for (const k of ED_KEYS[o.t] || []) r[k] = Math.round(+o[k]); return r; }));
+async function edPlay(items, owner) {
+  if (!items) {
+    const er = edValid(); if (er) { edMsg(er); return; } edSave();
+    // свой уровень: если он уже опубликован и совпадает — играем в его общей комнате (к тебе могут зайти), иначе — в личной
+    owner = ME ? 'local-' + ME.id : 'local';
+    if (ME) { const r = await api('GET', '/api/levels/' + ME.id); if (r.ok && Array.isArray(r.items) && edSig(r.items) === edSig(CUSTOM)) owner = ME.id; }
+  } else { CUSTOM = items; }
+  CUSTOM_OWNER = owner || 'local'; if (ED.root) ED.root.hidden = true; setMap('custom'); startGame(false);
+}
 async function edPublish() {
   const er = edValid(); if (er) { edMsg(er); return; } edSave(); if (!ME) { edMsg(tr('Нет связи с сервером')); return; }
-  const r = await api('POST', '/api/levels', { name: ME.name, items: CUSTOM }); edMsg(r.ok ? tr('Опубликовано!') : tr('Не удалось опубликовать'));
+  const r = await api('POST', '/api/levels', { name: ME.name, items: CUSTOM }); edMsg(r.ok ? tr('Опубликовано! Друзья найдут уровень в «Уровни игроков» и смогут играть вместе с тобой.') : tr('Не удалось опубликовать'));
 }
 function openLevels() {
   modal((c, close) => {
@@ -1708,7 +1718,7 @@ function openLevels() {
     api('GET', '/api/levels').then((r) => {
       if (!r.ok) { list.textContent = tr('Не удалось загрузить'); return; }
       list.innerHTML = ''; if (!r.levels.length) list.textContent = tr('Пока пусто');
-      r.levels.forEach((v) => { const row = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin:8px 0' }, list); mk('span', { textContent: '🛠 ' + String(v.name || '') + ' · ' + String(v.by || '') }, row);
+      r.levels.forEach((v) => { const row = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin:8px 0' }, list); mk('span', { textContent: '🛠 ' + String(v.name || '') + ' · ' + String(v.by || '') + (v.online > 0 ? ' · 👥 ' + (v.online | 0) : '') }, row);
         bt('▶', async () => { const l = await api('GET', '/api/levels/' + v.id); if (l.ok && Array.isArray(l.items)) { close(); edPlay(l.items.slice(0, 400), v.id); } }, '', row); });
     });
   });
